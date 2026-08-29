@@ -1,19 +1,11 @@
 package main
 
 import (
-	"fmt"
-	"io/fs"
 	"os"
 )
 
 func main() {
-
-	err, _ := dirTree()
-	if err != nil {
-		return
-	}
-
-	/*out := os.Stdout
+	out := os.Stdout
 	if !(len(os.Args) == 2 || len(os.Args) == 3) {
 		panic("usage go run main.go . [-f]")
 	}
@@ -21,21 +13,23 @@ func main() {
 	printFiles := len(os.Args) == 3 && os.Args[2] == "-f"
 	err := dirTree(out, path, printFiles)
 	if err != nil {
-		panic(err.Error())
+		panic("")
 	}
-	*/
 }
 
-type DirEntry = fs.DirEntry
+func dirTree(path string, printFiles bool) (out *os.File) {
 
-func dirTree(name string) ([]DirEntry, error) {
+	printFiles = false
 
-	files, err := os.ReadDir(name)
+	files, err := os.ReadDir(path)
 	if err != nil {
-		return nil, err
+		panic("Bad dir")
 	}
-	for _, file := range files {
-		fmt.Println(file.Name())
+	for _, specFile := range files {
+		if specFile.IsDir() {
+			printFiles = true
+		} else {
+
+		}
 	}
-	return nil, err
 }
