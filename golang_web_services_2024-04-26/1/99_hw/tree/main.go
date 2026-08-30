@@ -5,6 +5,7 @@ import (
 )
 
 func main() {
+
 	out := os.Stdout
 	if !(len(os.Args) == 2 || len(os.Args) == 3) {
 		panic("usage go run main.go . [-f]")
@@ -25,11 +26,17 @@ func dirTree(path string, printFiles bool) (out *os.File) {
 	if err != nil {
 		panic("Bad dir")
 	}
-	for _, specFile := range files {
-		if specFile.IsDir() {
-			printFiles = true
+
+	for _, entries := range files {
+		if entries.IsDir() {
+			printFiles = false
+			if printFiles == false {
+				dirTree(path, printFiles)
+			}
 		} else {
+			printFiles = true
 
 		}
 	}
+	return out
 }
