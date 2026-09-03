@@ -30,24 +30,24 @@ func dirTree(out *os.File, path string, printFiles bool) {
 	if err != nil {
 		panic("Bad dir")
 	}
+	prefix := ""
 	for i, entries := range files {
 		if entries.IsDir() {
 			printFiles = false
-			fmt.Printf("└───"+"%v \n\t", entries)
+			fmt.Printf("└───%v\n\t", entries.Name())
 			nextPath := filepath.Join(path, entries.Name())
 			dirTree(out, nextPath, printFiles)
 		} else {
 			printFiles = true
+			nextPrefix := prefix
 			if i == len(files)-1 {
-				fmt.Printf("└───"+"%v", entries)
+				prefix += "   "
+				fmt.Printf("%s └───%v\t\n", nextPrefix, entries.Name())
 			} else {
-				fmt.Printf("├───%v \n", entries)
+				nextPrefix += "│   "
+				fmt.Printf("%s├───%v\n", nextPrefix, entries.Name())
+
 			}
 		}
 	}
 }
-
-/*
-if i == len(files)-1 {
-fmt.Printf("└───"+"%v", entries)
-}*/
