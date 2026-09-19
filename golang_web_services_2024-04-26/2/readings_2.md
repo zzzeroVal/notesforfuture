@@ -1,4 +1,4 @@
-На русском:
+ На русском:
 * https://habrahabr.ru/post/141853/ - как работают горутины
 * https://habrahabr.ru/post/308070/ - как работают каналы
 * https://habrahabr.ru/post/333654/ - как работает планировщик ( https://rakyll.org/scheduler/ )
