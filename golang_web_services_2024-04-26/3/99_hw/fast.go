@@ -7,6 +7,7 @@ import (
 	"io"
 	"os"
 	"regexp"
+	"strings"
 )
 
 func FastSearch(out io.Writer) {
@@ -16,7 +17,7 @@ func FastSearch(out io.Writer) {
 	}
 
 	r := regexp.MustCompile("@")
-	seenBrowsers := []string{}
+	var seenBrowsers []string
 	uniqueBrowsers := 0
 	foundUsers := ""
 
@@ -24,8 +25,8 @@ func FastSearch(out io.Writer) {
 	i := -1
 
 	for {
-		line, err := reader.ReadString('\n')
-		if line != "" {
+		line, err := reader.ReadBytes('\n')
+		if len(line) > 0 {
 			i++
 			user := make(map[string]interface{})
 			err := json.Unmarshal(line, &user)
@@ -48,7 +49,7 @@ func FastSearch(out io.Writer) {
 					// log.Println("cant cast browser to string")
 					continue
 				}
-				if ok, err := regexp.MatchString("Android", browser); ok && err == nil { // #2 УЗКОЕ МЕСТО
+				if strings.Contains(browser, "Android") { // #2 УЗКОЕ МЕСТО
 					isAndroid = true
 					notSeenBefore := true
 					for _, item := range seenBrowsers {
@@ -70,7 +71,7 @@ func FastSearch(out io.Writer) {
 					// log.Println("cant cast browser to string")
 					continue
 				}
-				if ok, err := regexp.MatchString("MSIE", browser); ok && err == nil { // УЗКОЕ МЕСТО
+				if strings.Contains(browser, "MSIE") { // УЗКОЕ МЕСТО
 					isMSIE = true
 					notSeenBefore := true
 					for _, item := range seenBrowsers {
