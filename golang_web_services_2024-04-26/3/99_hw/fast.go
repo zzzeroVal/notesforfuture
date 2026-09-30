@@ -2,8 +2,8 @@ package main
 
 import (
 	"bufio"
-	"encoding/json"
 	"fmt"
+	"hw3/models"
 	"io"
 	"os"
 	"regexp"
@@ -17,38 +17,29 @@ func FastSearch(out io.Writer) {
 	}
 
 	r := regexp.MustCompile("@")
-	var seenBrowsers []string
+	var seenBrowsers []string // #4 Сделать слайс с заданной размерностью?
 	uniqueBrowsers := 0
-	foundUsers := ""
+	var foundUsers strings.Builder
 
 	reader := bufio.NewReader(file)
 	i := -1
 
 	for {
+		var user models.User
 		line, err := reader.ReadBytes('\n')
 		if len(line) > 0 {
 			i++
-			user := make(map[string]interface{})
-			err := json.Unmarshal(line, &user)
-			if err != nil {
+			// user := make(map[string]interface{})
+			if err := user.UnmarshalJSON(line); err != nil {
 				panic(err)
 			}
 
 			isAndroid := false
 			isMSIE := false
 
-			browsers, ok := user["browsers"].([]interface{})
-			if !ok {
-				// log.Println("cant cast browsers")
-				continue
-			}
+			browsers := user.Browsers
 
-			for _, browserRaw := range browsers {
-				browser, ok := browserRaw.(string)
-				if !ok {
-					// log.Println("cant cast browser to string")
-					continue
-				}
+			for _, browser := range browsers {
 				if strings.Contains(browser, "Android") { // #2 УЗКОЕ МЕСТО
 					isAndroid = true
 					notSeenBefore := true
@@ -65,12 +56,7 @@ func FastSearch(out io.Writer) {
 				}
 			}
 
-			for _, browserRaw := range browsers {
-				browser, ok := browserRaw.(string)
-				if !ok {
-					// log.Println("cant cast browser to string")
-					continue
-				}
+			for _, browser := range browsers {
 				if strings.Contains(browser, "MSIE") { // УЗКОЕ МЕСТО
 					isMSIE = true
 					notSeenBefore := true
@@ -86,14 +72,13 @@ func FastSearch(out io.Writer) {
 					}
 				}
 			}
-
 			if !(isAndroid && isMSIE) {
 				continue
 			}
 
 			// log.Println("Android and MSIE user:", user["name"], user["email"])
-			email := r.ReplaceAllString(user["email"].(string), " [at] ")
-			foundUsers += fmt.Sprintf("[%d] %s <%s>\n", i, user["name"], email) // тут надо сделать через Builder, потому что мы каждый раз делаем аллокацию
+			email := r.ReplaceAllString(user.Email, " [at] ")
+			fmt.Fprintf(&foundUsers, "[%d] %s <%s>\n", i, user.Name, email)
 		}
 		if err == io.EOF {
 			break
@@ -102,6 +87,6 @@ func FastSearch(out io.Writer) {
 		}
 
 	}
-	fmt.Fprintln(out, "found users:\n"+foundUsers)
+	fmt.Fprintln(out, "found users:\n"+foundUsers.String())
 	fmt.Fprintln(out, "Total unique browsers", len(seenBrowsers))
 }
