@@ -6,7 +6,6 @@ import (
 	"hw3/models"
 	"io"
 	"os"
-	"regexp"
 	"strings"
 )
 
@@ -16,27 +15,22 @@ func FastSearch(out io.Writer) {
 		panic(err)
 	}
 
-	r := regexp.MustCompile("@")
-	var seenBrowsers []string // #4 Сделать слайс с заданной размерностью?
+	var seenBrowsers []string
 	uniqueBrowsers := 0
 	var foundUsers strings.Builder
-
 	reader := bufio.NewReader(file)
 	i := -1
 
 	for {
 		var user models.User
-		line, err := reader.ReadBytes('\n')
+		line, err := reader.ReadSlice('\n')
 		if len(line) > 0 {
 			i++
-			// user := make(map[string]interface{})
 			if err := user.UnmarshalJSON(line); err != nil {
 				panic(err)
 			}
-
 			isAndroid := false
 			isMSIE := false
-
 			browsers := user.Browsers
 
 			for _, browser := range browsers {
@@ -55,7 +49,6 @@ func FastSearch(out io.Writer) {
 					}
 				}
 			}
-
 			for _, browser := range browsers {
 				if strings.Contains(browser, "MSIE") { // УЗКОЕ МЕСТО
 					isMSIE = true
@@ -75,9 +68,8 @@ func FastSearch(out io.Writer) {
 			if !(isAndroid && isMSIE) {
 				continue
 			}
-
 			// log.Println("Android and MSIE user:", user["name"], user["email"])
-			email := r.ReplaceAllString(user.Email, " [at] ")
+			email := strings.ReplaceAll(user.Email, "@", " [at] ")
 			fmt.Fprintf(&foundUsers, "[%d] %s <%s>\n", i, user.Name, email)
 		}
 		if err == io.EOF {
