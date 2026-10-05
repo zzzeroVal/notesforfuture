@@ -4,6 +4,8 @@ import (
 	"encoding/xml"
 	"fmt"
 	"os"
+	"sort"
+	"strings"
 )
 
 type Person struct {
@@ -33,7 +35,6 @@ func main() {
 	}
 
 	var users []User
-
 	for _, person := range root.Row {
 		user := User{
 			Id:     person.Id,
@@ -44,6 +45,59 @@ func main() {
 		}
 		users = append(users, user)
 	}
-	fmt.Println(len(users))
-	fmt.Println(users[0])
+
+	query := ""
+	var acceptUsers []User
+
+	for _, user := range users {
+		if strings.Contains(user.Name, query) || strings.Contains(user.About, query) {
+			acceptUsers = append(acceptUsers, user)
+		}
+	}
+	orderField := ""
+	orderBy := OrderByAsc
+
+	switch orderField {
+	case "Age":
+		switch orderBy {
+		case OrderByAsc:
+			sort.Slice(acceptUsers, func(i, j int) bool {
+				return acceptUsers[i].Age < acceptUsers[j].Age
+			})
+		case OrderByAsIs:
+		case OrderByDesc:
+			sort.Slice(acceptUsers, func(i, j int) bool {
+				return acceptUsers[i].Age > acceptUsers[j].Age
+			})
+		}
+	case "Id":
+		switch orderBy {
+		case OrderByAsc:
+			sort.Slice(acceptUsers, func(i, j int) bool {
+				return acceptUsers[i].Id < acceptUsers[j].Id
+			})
+		case OrderByAsIs:
+		case OrderByDesc:
+			sort.Slice(acceptUsers, func(i, j int) bool {
+				return acceptUsers[i].Id > acceptUsers[j].Id
+			})
+		}
+	case "Name", "":
+		switch orderBy {
+		case OrderByAsc:
+			sort.Slice(acceptUsers, func(i, j int) bool {
+				return acceptUsers[i].Name < acceptUsers[j].Name
+			})
+		case OrderByAsIs:
+		case OrderByDesc:
+			sort.Slice(acceptUsers, func(i, j int) bool {
+				return acceptUsers[i].Name > acceptUsers[j].Name
+			})
+		}
+		fmt.Println(acceptUsers[0].Name, acceptUsers[len(acceptUsers)-1].Name)
+	default:
+		fmt.Printf("error: %v", orderField)
+	}
 }
+
+// func Slice(x any, less func(i, j int) bool)
