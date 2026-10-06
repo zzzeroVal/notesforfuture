@@ -54,7 +54,7 @@ func main() {
 			acceptUsers = append(acceptUsers, user)
 		}
 	}
-	orderField := ""
+	orderField := "Id"
 	orderBy := OrderByAsc
 
 	switch orderField {
@@ -94,10 +94,20 @@ func main() {
 				return acceptUsers[i].Name > acceptUsers[j].Name
 			})
 		}
-		fmt.Println(acceptUsers[0].Name, acceptUsers[len(acceptUsers)-1].Name)
 	default:
 		fmt.Printf("error: %v", orderField)
 	}
-}
 
-// func Slice(x any, less func(i, j int) bool)
+	offset := 35
+	limit := 4
+	end := offset + limit
+	if end > len(acceptUsers) {
+		end = len(acceptUsers)
+	}
+	if offset < len(acceptUsers) {
+		acceptUsers = acceptUsers[offset:end]
+	} else {
+		acceptUsers = nil
+	}
+	fmt.Println(len(acceptUsers))
+}
