@@ -1,10 +1,13 @@
 package main
 
 import (
+	"encoding/json"
 	"encoding/xml"
 	"fmt"
+	"net/http"
 	"os"
 	"sort"
+	"strconv"
 	"strings"
 )
 
@@ -21,7 +24,7 @@ type Root struct {
 	Row []Person `xml:"row"`
 }
 
-func main() {
+func SearchServer(w http.ResponseWriter, r *http.Request) {
 	data, err := os.ReadFile("dataset.xml")
 	if err != nil {
 		panic(err)
@@ -46,7 +49,7 @@ func main() {
 		users = append(users, user)
 	}
 
-	query := ""
+	query := r.URL.Query().Get("query")
 	var acceptUsers []User
 
 	for _, user := range users {
@@ -54,12 +57,18 @@ func main() {
 			acceptUsers = append(acceptUsers, user)
 		}
 	}
-	orderField := "Id"
-	orderBy := OrderByAsc
+	orderField := r.URL.Query().Get("order_field")
+	orderBy := r.URL.Query().Get("order_by")
+
+	orderByInt, err := strconv.Atoi(orderBy)
+	if err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
 
 	switch orderField {
 	case "Age":
-		switch orderBy {
+		switch orderByInt {
 		case OrderByAsc:
 			sort.Slice(acceptUsers, func(i, j int) bool {
 				return acceptUsers[i].Age < acceptUsers[j].Age
@@ -71,7 +80,7 @@ func main() {
 			})
 		}
 	case "Id":
-		switch orderBy {
+		switch orderByInt {
 		case OrderByAsc:
 			sort.Slice(acceptUsers, func(i, j int) bool {
 				return acceptUsers[i].Id < acceptUsers[j].Id
@@ -83,7 +92,7 @@ func main() {
 			})
 		}
 	case "Name", "":
-		switch orderBy {
+		switch orderByInt {
 		case OrderByAsc:
 			sort.Slice(acceptUsers, func(i, j int) bool {
 				return acceptUsers[i].Name < acceptUsers[j].Name
@@ -95,19 +104,49 @@ func main() {
 			})
 		}
 	default:
-		fmt.Printf("error: %v", orderField)
+		// доделать
 	}
 
-	offset := 35
-	limit := 4
-	end := offset + limit
+	offset := r.URL.Query().Get("offset")
+
+	offsetInt, err := strconv.Atoi(offset)
+	if err != nil || offsetInt < 0 {
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+
+	limit := r.URL.Query().Get("limit")
+
+	limitInt, err := strconv.Atoi(limit)
+	if err != nil || limitInt < 0 {
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+
+	end := limitInt + offsetInt
+
 	if end > len(acceptUsers) {
 		end = len(acceptUsers)
 	}
-	if offset < len(acceptUsers) {
-		acceptUsers = acceptUsers[offset:end]
+	if offsetInt < len(acceptUsers) {
+		acceptUsers = acceptUsers[offsetInt:end]
 	} else {
 		acceptUsers = nil
 	}
-	fmt.Println(len(acceptUsers))
+
+	encoder := json.NewEncoder(w)
+	err = encoder.Encode(acceptUsers)
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
+}
+
+func main() {
+	http.HandleFunc("/searchServer", SearchServer)
+
+	if err := http.ListenAndServe(":9090", nil); err != nil {
+		fmt.Println("Ошибка при работе с HTTP сервером", err)
+	}
 }
