@@ -25,6 +25,8 @@ type Root struct {
 }
 
 func SearchServer(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+
 	data, err := os.ReadFile("dataset.xml")
 	if err != nil {
 		panic(err)
@@ -104,7 +106,13 @@ func SearchServer(w http.ResponseWriter, r *http.Request) {
 			})
 		}
 	default:
-		// доделать
+		w.WriteHeader(http.StatusBadRequest)
+		encoder := json.NewEncoder(w)
+		err := encoder.Encode(SearchErrorResponse{ErrorBadOrderField})
+		if err != nil {
+			return
+		}
+		return
 	}
 
 	offset := r.URL.Query().Get("offset")
