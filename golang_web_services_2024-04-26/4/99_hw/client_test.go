@@ -4,6 +4,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"reflect"
+	"strings"
 	"testing"
 )
 
@@ -97,5 +98,76 @@ func TestErrors(t *testing.T) {
 		t.Errorf("expected error, receive: %v", err)
 	} else if err.Error() != "limit must be > 0" {
 		t.Errorf("expected: %v, received: %v", "limit must be > 0", err.Error())
+	}
+}
+
+func TestLimit(t *testing.T) {
+	ts := httptest.NewServer(http.HandlerFunc(SearchServer))
+	defer ts.Close()
+
+	authSearchClient := SearchClient{
+		AccessToken: "",
+		URL:         ts.URL,
+	}
+
+	resp, err := authSearchClient.FindUsers(SearchRequest{
+		Limit: 26,
+	})
+	if err != nil {
+		t.Fatalf("error: %v", err)
+	}
+	if resp == nil {
+		t.Fatal("expected response, got nil")
+	}
+	if len(resp.Users) != 25 {
+		t.Errorf("expected 25, received: %v", len(resp.Users))
+	}
+	if resp.NextPage != true {
+		t.Errorf("expected true, received: %v", resp.NextPage)
+	}
+}
+
+func TestOffset(t *testing.T) {
+	authSearchClient := SearchClient{
+		AccessToken: "",
+		URL:         "",
+	}
+
+	resp, err := authSearchClient.FindUsers(SearchRequest{
+		Offset: -1,
+	})
+	// сколько записей пропустить сначала
+	if resp != nil {
+		t.Errorf("expected nil, received: %v", resp)
+	}
+	if err == nil {
+		t.Errorf("expected: error, received: %v", err)
+	} else if err.Error() != "offset must be > 0" {
+		t.Errorf("expected: %v, received: %v", "offset must be > 0", err)
+	}
+
+}
+
+func TestUnknownError(t *testing.T) {
+	ts := httptest.NewServer(http.HandlerFunc(SearchServer))
+
+	authSearchClient := SearchClient{
+		AccessToken: "",
+		URL:         ts.URL,
+	}
+	ts.Close()
+
+	resp, err := authSearchClient.FindUsers(SearchRequest{
+		Limit:  1,
+		Offset: 0,
+	})
+	if resp != nil {
+		t.Fatalf("expected: nil, received: %v", resp)
+	}
+	if err == nil {
+		t.Fatalf("expected: error, received: nil")
+	}
+	if !strings.HasPrefix(err.Error(), "unknown") {
+		t.Errorf("expected: unknown, received: %v", err)
 	}
 }

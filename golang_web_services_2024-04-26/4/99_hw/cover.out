@@ -2,13 +2,13 @@ mode: set
 hw4/client.go:61.80,65.19 2 1
 hw4/client.go:65.19,67.3 1 1
 hw4/client.go:68.2,68.20 1 1
-hw4/client.go:68.20,70.3 1 0
+hw4/client.go:68.20,70.3 1 1
 hw4/client.go:71.2,71.20 1 1
-hw4/client.go:71.20,73.3 1 0
+hw4/client.go:71.20,73.3 1 1
 hw4/client.go:76.2,88.16 10 1
-hw4/client.go:88.16,89.54 1 0
+hw4/client.go:88.16,89.54 1 1
 hw4/client.go:89.54,91.4 1 0
-hw4/client.go:92.3,92.50 1 0
+hw4/client.go:92.3,92.50 1 1
 hw4/client.go:94.2,97.25 3 1
 hw4/client.go:98.31,99.44 1 0
 hw4/client.go:100.38,101.53 1 0
