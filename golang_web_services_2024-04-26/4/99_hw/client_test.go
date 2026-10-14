@@ -6,6 +6,7 @@ import (
 	"reflect"
 	"strings"
 	"testing"
+	"time"
 )
 
 /*
@@ -169,5 +170,69 @@ func TestUnknownError(t *testing.T) {
 	}
 	if !strings.HasPrefix(err.Error(), "unknown") {
 		t.Errorf("expected: unknown, received: %v", err)
+	}
+}
+
+func TestTimeout(t *testing.T) {
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		time.Sleep(time.Second * 2)
+	}))
+	defer ts.Close()
+
+	authSearchClient := SearchClient{
+		AccessToken: "",
+		URL:         ts.URL,
+	}
+
+	resp, err := authSearchClient.FindUsers(SearchRequest{})
+
+	if resp != nil {
+		t.Fatalf("expected: nil, received: %v", resp)
+	}
+	if err == nil {
+		t.Fatal("expected: error, received: nil")
+	}
+	if !strings.HasPrefix(err.Error(), "timeout") {
+		t.Errorf("expected: %v, received: %v", "timeout", err)
+	}
+}
+
+func TestStatus(t *testing.T) {
+
+	testCases := []struct {
+		StatusCode   int
+		ExpectedText string
+	}{
+		{
+			StatusCode:   401,
+			ExpectedText: "Bad AccessToken",
+		},
+		{
+			StatusCode:   500,
+			ExpectedText: "SearchServer fatal error",
+		},
+	}
+
+	for _, tc := range testCases {
+		ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(tc.StatusCode)
+		}))
+		defer ts.Close()
+
+		authSearchClient := SearchClient{
+			AccessToken: "",
+			URL:         ts.URL,
+		}
+		resp, err := authSearchClient.FindUsers(SearchRequest{})
+
+		if resp != nil {
+			t.Fatalf("expected: nil, received: %v", resp)
+		}
+		if err == nil {
+			t.Fatalf("expected: error, received: %v", err)
+		}
+		if err.Error() != tc.ExpectedText {
+			t.Errorf("expected: %v, received: %v", tc.ExpectedText, err)
+		}
 	}
 }
