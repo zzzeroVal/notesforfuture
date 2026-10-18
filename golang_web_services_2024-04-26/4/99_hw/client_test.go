@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"reflect"
@@ -200,8 +201,10 @@ func TestTimeout(t *testing.T) {
 func TestStatus(t *testing.T) {
 
 	testCases := []struct {
-		StatusCode   int
-		ExpectedText string
+		StatusCode    int
+		ExpectedText  string
+		CheckPrefix   bool
+		ResponseError string
 	}{
 		{
 			StatusCode:   401,
@@ -211,11 +214,40 @@ func TestStatus(t *testing.T) {
 			StatusCode:   500,
 			ExpectedText: "SearchServer fatal error",
 		},
+		{
+			StatusCode:   400,
+			ExpectedText: "cant unpack error json:",
+			CheckPrefix:  true,
+		},
+		{
+			StatusCode:    400,
+			ResponseError: "ErrorBadOrderField",
+			ExpectedText:  "OrderField Height invalid",
+		},
+		{
+			StatusCode:    400,
+			ResponseError: "Unknown",
+			ExpectedText:  "unknown bad request error: Unknown",
+		},
+		{
+			StatusCode:    200, // как у нас покрылся этот тест case
+			ResponseError: "",
+			ExpectedText:  "cant unpack result json:",
+			CheckPrefix:   true,
+		},
 	}
 
 	for _, tc := range testCases {
 		ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			w.WriteHeader(tc.StatusCode)
+			if tc.ResponseError != "" { // проработать этот тест еще раз, так как плохо уложилось
+				encoder := json.NewEncoder(w)
+				err := encoder.Encode(SearchErrorResponse{Error: tc.ResponseError})
+				if err != nil {
+					t.Errorf("expected: nil, received: %v", err)
+				}
+
+			}
 		}))
 		defer ts.Close()
 
@@ -223,7 +255,7 @@ func TestStatus(t *testing.T) {
 			AccessToken: "",
 			URL:         ts.URL,
 		}
-		resp, err := authSearchClient.FindUsers(SearchRequest{})
+		resp, err := authSearchClient.FindUsers(SearchRequest{OrderField: "Height"})
 
 		if resp != nil {
 			t.Fatalf("expected: nil, received: %v", resp)
@@ -231,8 +263,12 @@ func TestStatus(t *testing.T) {
 		if err == nil {
 			t.Fatalf("expected: error, received: %v", err)
 		}
-		if err.Error() != tc.ExpectedText {
-			t.Errorf("expected: %v, received: %v", tc.ExpectedText, err)
+		if tc.CheckPrefix {
+			if !strings.HasPrefix(err.Error(), tc.ExpectedText) {
+				t.Errorf("expected: %v, received: %v", tc.ExpectedText, err)
+			}
+		} else if err.Error() != tc.ExpectedText {
+			t.Fatalf("expected: %v, received: %v", tc.ExpectedText, err)
 		}
 	}
 }
