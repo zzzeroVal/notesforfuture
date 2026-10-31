@@ -43,6 +43,7 @@ type Handler struct {
 func NewDbExplorer(db *sql.DB) (http.Handler, error) {
 
 	info := Handler{Info: make(map[string][]Column)}
+	var tableNames []string
 
 	rows, err := db.Query("SHOW TABLES")
 	if err != nil {
@@ -56,7 +57,15 @@ func NewDbExplorer(db *sql.DB) (http.Handler, error) {
 		if err != nil {
 			return nil, err
 		}
-		columnRows, err := db.Query("SHOW FULL COLUMNS FROM " + "`" + nameTable + "`")
+		tableNames = append(tableNames, nameTable)
+	}
+	err = rows.Err()
+	if err != nil {
+		return nil, err
+	}
+
+	for _, name := range tableNames {
+		columnRows, err := db.Query("SHOW FULL COLUMNS FROM " + "`" + name + "`")
 		if err != nil {
 			return nil, err
 		}
@@ -70,7 +79,7 @@ func NewDbExplorer(db *sql.DB) (http.Handler, error) {
 				columnRows.Close()
 				return nil, err
 			}
-			info.Info[nameTable] = append(info.Info[nameTable], column)
+			info.Info[name] = append(info.Info[name], column)
 		}
 		err = columnRows.Err()
 		if err != nil {
@@ -79,12 +88,9 @@ func NewDbExplorer(db *sql.DB) (http.Handler, error) {
 		}
 		columnRows.Close()
 	}
-	err = rows.Err()
-	if err != nil {
-		return nil, err
-	}
 	return info, nil
 }
+
 func (info Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	var tablesName []string
 	if r.Method == http.MethodGet && r.URL.Path == "/" {
