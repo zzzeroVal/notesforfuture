@@ -2,8 +2,10 @@ package main
 
 import (
 	"database/sql"
-	"fmt"
+	"encoding/json"
+	"log"
 	"net/http"
+	"sort"
 
 	_ "github.com/go-sql-driver/mysql"
 )
@@ -92,11 +94,23 @@ func NewDbExplorer(db *sql.DB) (http.Handler, error) {
 }
 
 func (info Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	var tablesName []string
+	var namesTable []string
 	if r.Method == http.MethodGet && r.URL.Path == "/" {
 		for k, _ := range info.Info {
-			tablesName = append(tablesName, k)
+			namesTable = append(namesTable, k)
+		}
+		sort.Strings(namesTable)
+		data := map[string][]string{
+			"tables": namesTable,
+		}
+		response := map[string]map[string][]string{
+			"response": data,
+		}
+		w.Header().Set("Content-Type", "application/json")
+		err := json.NewEncoder(w).Encode(response)
+		if err != nil {
+			log.Printf("error: %v", err)
+			return
 		}
 	}
-	fmt.Println(tablesName)
 }
