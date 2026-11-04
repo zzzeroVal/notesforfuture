@@ -6,6 +6,7 @@ import (
 	"log"
 	"net/http"
 	"sort"
+	"strings"
 
 	_ "github.com/go-sql-driver/mysql"
 )
@@ -112,5 +113,21 @@ func (info Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			log.Printf("error: %v", err)
 			return
 		}
+		return
 	}
+	tableName := strings.TrimPrefix(r.URL.Path, "/")
+	_, ok := info.Info[tableName]
+	if !ok {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusNotFound)
+		response := map[string]string{
+			"error": "unknown table",
+		}
+		err := json.NewEncoder(w).Encode(response)
+		if err != nil {
+			log.Printf("error: %v", err)
+			return
+		}
+	}
+
 }
