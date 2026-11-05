@@ -41,11 +41,14 @@ type Column struct {
 
 type Handler struct {
 	Info map[string][]Column
+	db   *sql.DB
 }
 
 func NewDbExplorer(db *sql.DB) (http.Handler, error) {
 
-	info := Handler{Info: make(map[string][]Column)}
+	info := Handler{Info: make(map[string][]Column),
+		db: db,
+	}
 	var tableNames []string
 
 	rows, err := db.Query("SHOW TABLES")
@@ -128,6 +131,13 @@ func (info Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			log.Printf("error: %v", err)
 			return
 		}
+		return
 	}
+	query, err := info.db.Query("SELECT * FROM " + tableName)
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+	defer query.Close()
 
 }
