@@ -133,11 +133,49 @@ func (info Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 		return
 	}
+
 	query, err := info.db.Query("SELECT * FROM " + tableName)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
 	defer query.Close()
+	records := make([]map[string]interface{}, 0)
 
+	for query.Next() {
+		rowColumnValues := make([]interface{}, len(info.Info[tableName]))
+		scanDestinations := make([]interface{}, len(info.Info[tableName]))
+		for i, _ := range rowColumnValues {
+			scanDestinations[i] = &rowColumnValues[i]
+		}
+		err := query.Scan(scanDestinations...)
+		if err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+		record := make(map[string]interface{})
+		columns := info.Info[tableName]
+		for i, column := range columns {
+			columnName := column.Field
+			record[columnName] = rowColumnValues[i]
+		}
+		records = append(records, record)
+	}
+	err = query.Err()
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	data := map[string][]map[string]interface{}{
+		"records": records,
+	}
+	response := map[string]interface{}{
+		"response": data,
+	}
+	err = json.NewEncoder(w).Encode(response)
+	if err != nil {
+		log.Printf("error: %v", err)
+		return
+	}
 }
