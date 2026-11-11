@@ -6,6 +6,7 @@ import (
 	"log"
 	"net/http"
 	"sort"
+	"strconv"
 	"strings"
 
 	_ "github.com/go-sql-driver/mysql"
@@ -157,7 +158,31 @@ func (info Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		columns := info.Info[tableName]
 		for i, column := range columns {
 			columnName := column.Field
-			record[columnName] = rowColumnValues[i]
+			if rowColumnValues[i] == nil {
+				record[columnName] = nil
+				continue
+			}
+			data, ok := rowColumnValues[i].([]byte)
+			if !ok {
+				record[columnName] = rowColumnValues[i]
+				continue
+			}
+			switch {
+			case strings.HasPrefix(column.Type, "int"):
+				record[columnName], err = strconv.ParseInt(string(data), 10, 64)
+				if err != nil {
+					w.WriteHeader(http.StatusInternalServerError)
+					return
+				}
+			case strings.HasPrefix(column.Type, "float"), strings.HasPrefix(column.Type, "double"):
+				record[columnName], err = strconv.ParseFloat(string(data), 64)
+				if err != nil {
+					w.WriteHeader(http.StatusInternalServerError)
+					return
+				}
+			default:
+				record[columnName] = string(data)
+			}
 		}
 		records = append(records, record)
 	}
