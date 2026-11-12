@@ -12,25 +12,6 @@ import (
 	_ "github.com/go-sql-driver/mysql"
 )
 
-// тут вы пишете код
-// обращаю ваше внимание - в этом задании запрещены глобальные переменные
-
-type Item struct {
-	ID          int     `json:"id"`
-	Title       string  `json:"title"`
-	Description string  `json:"description"`
-	Updated     *string `json:"updated"`
-}
-
-type User struct {
-	UserID   int     `json:"user_id"`
-	Login    string  `json:"login"`
-	Password string  `json:"password"`
-	Email    string  `json:"email"`
-	Info     string  `json:"info"`
-	Updated  *string `json:"updated"`
-}
-
 type Column struct {
 	Field   string
 	Null    string
@@ -135,7 +116,29 @@ func (info Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	query, err := info.db.Query("SELECT * FROM " + tableName)
+	limit := r.URL.Query().Get("limit")
+	offset := r.URL.Query().Get("offset")
+	var err error
+
+	limitDeff := 5
+	offsetDeff := 0
+
+	if limit != "" {
+		parsedLimit, err := strconv.Atoi(limit) // временная переменная сохраняет default значение от перезаписи
+		if err == nil {
+			limitDeff = parsedLimit
+		}
+	}
+	if offset != "" {
+		parsedOffset, err := strconv.Atoi(offset)
+		if err == nil {
+			offsetDeff = parsedOffset
+		}
+	}
+
+	query, err := info.db.Query("SELECT * FROM "+tableName+" LIMIT ? OFFSET ?",
+		limitDeff, offsetDeff,
+	)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		return
