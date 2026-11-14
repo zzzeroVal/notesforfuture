@@ -79,9 +79,9 @@ func NewDbExplorer(db *sql.DB) (http.Handler, error) {
 	return info, nil
 }
 
-func (info Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+func (info Handler) ServeHTTP(resp http.ResponseWriter, req *http.Request) {
 	var namesTable []string
-	if r.Method == http.MethodGet && r.URL.Path == "/" {
+	if req.Method == http.MethodGet && req.URL.Path == "/" {
 		for k, _ := range info.Info {
 			namesTable = append(namesTable, k)
 		}
@@ -92,23 +92,30 @@ func (info Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		response := map[string]map[string][]string{
 			"response": data,
 		}
-		w.Header().Set("Content-Type", "application/json")
-		err := json.NewEncoder(w).Encode(response)
+		resp.Header().Set("Content-Type", "application/json")
+		err := json.NewEncoder(resp).Encode(response)
 		if err != nil {
 			log.Printf("error: %v", err)
 			return
 		}
 		return
 	}
-	tableName := strings.TrimPrefix(r.URL.Path, "/")
+	tableName := strings.TrimPrefix(req.URL.Path, "/")
+	tablePaths := strings.Split(tableName, "/")
+	tableName = tablePaths[0]
+	var recordID string
+
+	if len(tablePaths) > 1 {
+		recordID = tablePaths[1]
+	}
 	_, ok := info.Info[tableName]
 	if !ok {
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusNotFound)
+		resp.Header().Set("Content-Type", "application/json")
+		resp.WriteHeader(http.StatusNotFound)
 		response := map[string]string{
 			"error": "unknown table",
 		}
-		err := json.NewEncoder(w).Encode(response)
+		err := json.NewEncoder(resp).Encode(response)
 		if err != nil {
 			log.Printf("error: %v", err)
 			return
@@ -116,10 +123,15 @@ func (info Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	limit := r.URL.Query().Get("limit")
-	offset := r.URL.Query().Get("offset")
+	var primaryKey string //  id || user_id
+	for _, val := range info.Info[tableName] {
+		if val.Key == "PRI" {
+			primaryKey = val.Field
+		}
+	}
+	limit := req.URL.Query().Get("limit")
+	offset := req.URL.Query().Get("offset")
 	var err error
-
 	limitDeff := 5
 	offsetDeff := 0
 
@@ -136,16 +148,20 @@ func (info Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	query, err := info.db.Query("SELECT * FROM "+tableName+" LIMIT ? OFFSET ?",
-		limitDeff, offsetDeff,
-	)
+	var query *sql.Rows
+	if recordID != "" {
+		query, err = info.db.Query("SELECT * FROM "+tableName+" WHERE "+primaryKey+"= ?", recordID)
+	} else {
+		query, err = info.db.Query("SELECT * FROM "+tableName+" LIMIT ? OFFSET ?"+"",
+			limitDeff, offsetDeff,
+		)
+	}
 	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
+		resp.WriteHeader(http.StatusInternalServerError)
 		return
 	}
 	defer query.Close()
 	records := make([]map[string]interface{}, 0)
-
 	for query.Next() {
 		rowColumnValues := make([]interface{}, len(info.Info[tableName]))
 		scanDestinations := make([]interface{}, len(info.Info[tableName]))
@@ -154,7 +170,7 @@ func (info Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 		err := query.Scan(scanDestinations...)
 		if err != nil {
-			w.WriteHeader(http.StatusInternalServerError)
+			resp.WriteHeader(http.StatusInternalServerError)
 			return
 		}
 		record := make(map[string]interface{})
@@ -174,13 +190,13 @@ func (info Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			case strings.HasPrefix(column.Type, "int"):
 				record[columnName], err = strconv.ParseInt(string(data), 10, 64)
 				if err != nil {
-					w.WriteHeader(http.StatusInternalServerError)
+					resp.WriteHeader(http.StatusInternalServerError)
 					return
 				}
 			case strings.HasPrefix(column.Type, "float"), strings.HasPrefix(column.Type, "double"):
 				record[columnName], err = strconv.ParseFloat(string(data), 64)
 				if err != nil {
-					w.WriteHeader(http.StatusInternalServerError)
+					resp.WriteHeader(http.StatusInternalServerError)
 					return
 				}
 			default:
@@ -191,17 +207,41 @@ func (info Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 	err = query.Err()
 	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
+		resp.WriteHeader(http.StatusInternalServerError)
 		return
 	}
-	w.Header().Set("Content-Type", "application/json")
-	data := map[string][]map[string]interface{}{
-		"records": records,
+	if recordID != "" && len(records) == 0 {
+		resp.Header().Set("Content-Type", "application/json")
+		resp.WriteHeader(http.StatusNotFound)
+		response := map[string]string{
+			"error": "record not found",
+		}
+		err = json.NewEncoder(resp).Encode(response)
+		if err != nil {
+			log.Printf("error: %v", err)
+			return
+		}
+		return
 	}
-	response := map[string]interface{}{
-		"response": data,
+	resp.Header().Set("Content-Type", "application/json")
+	var response map[string]interface{}
+
+	if recordID != "" {
+		data := map[string]interface{}{
+			"record": records[0],
+		}
+		response = map[string]interface{}{
+			"response": data,
+		}
+	} else {
+		data := map[string][]map[string]interface{}{
+			"records": records,
+		}
+		response = map[string]interface{}{
+			"response": data,
+		}
 	}
-	err = json.NewEncoder(w).Encode(response)
+	err = json.NewEncoder(resp).Encode(response)
 	if err != nil {
 		log.Printf("error: %v", err)
 		return
