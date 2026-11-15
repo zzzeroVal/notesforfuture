@@ -102,7 +102,7 @@ func (info Handler) ServeHTTP(resp http.ResponseWriter, req *http.Request) {
 	}
 	tableName := strings.TrimPrefix(req.URL.Path, "/")
 	tablePaths := strings.Split(tableName, "/")
-	tableName = tablePaths[0]
+	tableName = tablePaths[0] // получаем имя таблицы
 	var recordID string
 
 	if len(tablePaths) > 1 {
@@ -120,6 +120,11 @@ func (info Handler) ServeHTTP(resp http.ResponseWriter, req *http.Request) {
 			log.Printf("error: %v", err)
 			return
 		}
+		return
+	}
+
+	if req.Method == http.MethodPost {
+		info.createRecord(resp, req, tableName)
 		return
 	}
 
@@ -245,5 +250,24 @@ func (info Handler) ServeHTTP(resp http.ResponseWriter, req *http.Request) {
 	if err != nil {
 		log.Printf("error: %v", err)
 		return
+	}
+}
+
+func (info Handler) createRecord(resp http.ResponseWriter, req *http.Request, tableName string) { // метод доступен внутри текущего пакета, т.к. с маленькой буквы
+	var userInput map[string]interface{}
+	decoder := json.NewDecoder(req.Body)
+	err := decoder.Decode(&userInput)
+	if err != nil {
+		resp.WriteHeader(http.StatusInternalServerError)
+		log.Printf("error: %v", err)
+		return
+	}
+	newRecord := make(map[string]interface{})
+	for field, record := range userInput {
+		for _, column := range info.Info[tableName] {
+			if field == column.Field {
+				newRecord[field] = record
+			}
+		}
 	}
 }

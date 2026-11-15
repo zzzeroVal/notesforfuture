@@ -197,7 +197,7 @@ func TestApis(t *testing.T) {
 		// тут идёт создание и редактирование
 		Case{
 			Path:   "/items/",
-			Method: http.MethodPut,
+			Method: http.MethodPost,
 			Body: CR{
 				"id":          42, // auto increment primary key игнорируется при вставке
 				"title":       "db_crud",
@@ -227,7 +227,7 @@ func TestApis(t *testing.T) {
 		},
 		Case{
 			Path:   "/items/3",
-			Method: http.MethodPost,
+			Method: http.MethodPut,
 			Body: CR{
 				"description": "Написать программу db_crud",
 			},
@@ -254,7 +254,7 @@ func TestApis(t *testing.T) {
 		// обновление null-поля в таблице
 		Case{
 			Path:   "/items/3",
-			Method: http.MethodPost,
+			Method: http.MethodPut,
 			Body: CR{
 				"updated": "autotests",
 			},
@@ -281,7 +281,7 @@ func TestApis(t *testing.T) {
 		// обновление null-поля в таблице
 		Case{
 			Path:   "/items/3",
-			Method: http.MethodPost,
+			Method: http.MethodPut,
 			Body: CR{
 				"updated": nil,
 			},
@@ -308,7 +308,7 @@ func TestApis(t *testing.T) {
 		// ошибки
 		Case{
 			Path:   "/items/3",
-			Method: http.MethodPost,
+			Method: http.MethodPut,
 			Status: http.StatusBadRequest,
 			Body: CR{
 				"id": 4, // primary key нельзя обновлять у существующей записи
@@ -319,7 +319,7 @@ func TestApis(t *testing.T) {
 		},
 		Case{
 			Path:   "/items/3",
-			Method: http.MethodPost,
+			Method: http.MethodPut,
 			Status: http.StatusBadRequest,
 			Body: CR{
 				"title": 42,
@@ -330,7 +330,7 @@ func TestApis(t *testing.T) {
 		},
 		Case{
 			Path:   "/items/3",
-			Method: http.MethodPost,
+			Method: http.MethodPut,
 			Status: http.StatusBadRequest,
 			Body: CR{
 				"title": nil,
@@ -342,7 +342,7 @@ func TestApis(t *testing.T) {
 
 		Case{
 			Path:   "/items/3",
-			Method: http.MethodPost,
+			Method: http.MethodPut,
 			Status: http.StatusBadRequest,
 			Body: CR{
 				"updated": 42,
@@ -398,7 +398,7 @@ func TestApis(t *testing.T) {
 
 		Case{
 			Path:   "/users/1",
-			Method: http.MethodPost,
+			Method: http.MethodPut,
 			Body: CR{
 				"info":    "try update",
 				"updated": "now",
@@ -427,7 +427,7 @@ func TestApis(t *testing.T) {
 		// ошибки
 		Case{
 			Path:   "/users/1",
-			Method: http.MethodPost,
+			Method: http.MethodPut,
 			Status: http.StatusBadRequest,
 			Body: CR{
 				"user_id": 1, // primary key нельзя обновлять у существующей записи
@@ -439,7 +439,7 @@ func TestApis(t *testing.T) {
 		// не забываем про sql-инъекции
 		Case{
 			Path:   "/users/",
-			Method: http.MethodPut,
+			Method: http.MethodPost,
 			Body: CR{
 				"user_id":    2,
 				"login":      "qwerty'",
