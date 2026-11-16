@@ -123,7 +123,7 @@ func (info Handler) ServeHTTP(resp http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	if req.Method == http.MethodPost {
+	if req.Method == http.MethodPut {
 		info.createRecord(resp, req, tableName)
 		return
 	}
@@ -263,11 +263,20 @@ func (info Handler) createRecord(resp http.ResponseWriter, req *http.Request, ta
 		return
 	}
 	newRecord := make(map[string]interface{})
-	for field, record := range userInput {
-		for _, column := range info.Info[tableName] {
-			if field == column.Field {
-				newRecord[field] = record
-			}
+	for _, field := range info.Info[tableName] {
+		userField, ok := userInput[field.Field] // вот тут было сложно взять поле из userInput
+		if ok && field.Extra != "auto_increment" {
+			newRecord[field.Field] = userField
 		}
+		/*
+			for _, column := range info.Info[tableName] {
+				if field == column.Field && column.Extra != "auto_increment" {
+					_, ok := record.(string)
+					if ok {
+						newRecord[field] = record
+					}
+				}
+			}
+		*/
 	}
 }
