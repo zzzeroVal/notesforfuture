@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"log"
+	"math"
 	"net/http"
 	"sort"
 	"strconv"
@@ -266,17 +267,24 @@ func (info Handler) createRecord(resp http.ResponseWriter, req *http.Request, ta
 	for _, field := range info.Info[tableName] {
 		userField, ok := userInput[field.Field] // вот тут было сложно взять поле из userInput
 		if ok && field.Extra != "auto_increment" {
-			newRecord[field.Field] = userField
-		}
-		/*
-			for _, column := range info.Info[tableName] {
-				if field == column.Field && column.Extra != "auto_increment" {
-					_, ok := record.(string)
-					if ok {
-						newRecord[field] = record
-					}
+			// todo завтра пройти дебагом по этому куску с разными входными параметрами
+			if field.Null == "NO" && userField == nil {
+				resp.WriteHeader(http.StatusInternalServerError)
+				return
+			}
+			_, isString := userField.(string)
+			if !isString && strings.HasPrefix(field.Type, "varchar") && userField != nil {
+				resp.WriteHeader(http.StatusInternalServerError)
+				return
+			}
+			num, isInt := userField.(float64)
+			if strings.HasPrefix(field.Type, "int") && userField != nil {
+				if !isInt || num != math.Trunc(num) {
+					resp.WriteHeader(http.StatusInternalServerError)
+					return
 				}
 			}
-		*/
+			newRecord[field.Field] = userField
+		}
 	}
 }
