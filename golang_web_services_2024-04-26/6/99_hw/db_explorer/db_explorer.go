@@ -273,7 +273,7 @@ func (info Handler) createRecord(resp http.ResponseWriter, req *http.Request, ta
 				return
 			}
 			_, isString := userField.(string)
-			if !isString && strings.HasPrefix(field.Type, "varchar") && userField != nil {
+			if !isString && (strings.HasPrefix(field.Type, "varchar") || field.Type == "text") && userField != nil {
 				resp.WriteHeader(http.StatusInternalServerError)
 				return
 			}
@@ -287,4 +287,27 @@ func (info Handler) createRecord(resp http.ResponseWriter, req *http.Request, ta
 			newRecord[field.Field] = userField
 		}
 	}
+	var sortedRecordColumns []string
+	var sortedRecordValues []interface{}
+	var placeHolders []string
+	for k, v := range newRecord {
+		sortedRecordColumns = append(sortedRecordColumns, k)
+		sortedRecordValues = append(sortedRecordValues, v)
+		placeHolders = append(placeHolders, "?")
+	}
+	placeHoldersSQL := strings.Join(placeHolders, ", ")
+	columnsSQL := strings.Join(sortedRecordColumns, ", ")
+	insertSQL := "INSERT INTO " + tableName + " (" + columnsSQL + ") " + "VALUES" + " (" + placeHoldersSQL + ") "
+	result, err := info.db.Exec(insertSQL, sortedRecordValues...)
+	if err != nil {
+		resp.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+	id, err := result.LastInsertId()
+	if err != nil {
+		resp.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+	//todo дописать респонс для клиента, id уже находим корректно
+
 }
