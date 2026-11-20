@@ -124,17 +124,18 @@ func (info Handler) ServeHTTP(resp http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	if req.Method == http.MethodPut {
-		info.createRecord(resp, req, tableName)
-		return
-	}
-
 	var primaryKey string //  id || user_id
 	for _, val := range info.Info[tableName] {
 		if val.Key == "PRI" {
 			primaryKey = val.Field
 		}
 	}
+
+	if req.Method == http.MethodPut {
+		info.createRecord(resp, req, tableName, primaryKey)
+		return
+	}
+
 	limit := req.URL.Query().Get("limit")
 	offset := req.URL.Query().Get("offset")
 	var err error
@@ -254,7 +255,7 @@ func (info Handler) ServeHTTP(resp http.ResponseWriter, req *http.Request) {
 	}
 }
 
-func (info Handler) createRecord(resp http.ResponseWriter, req *http.Request, tableName string) { // метод доступен внутри текущего пакета, т.к. с маленькой буквы
+func (info Handler) createRecord(resp http.ResponseWriter, req *http.Request, tableName string, primaryKey string) { // метод доступен внутри текущего пакета, т.к. с маленькой буквы
 	var userInput map[string]interface{}
 	decoder := json.NewDecoder(req.Body)
 	err := decoder.Decode(&userInput)
@@ -308,6 +309,16 @@ func (info Handler) createRecord(resp http.ResponseWriter, req *http.Request, ta
 		resp.WriteHeader(http.StatusInternalServerError)
 		return
 	}
-	//todo дописать респонс для клиента, id уже находим корректно
-
+	resp.Header().Set("Content-Type", "application/json")
+	data := map[string]int64{
+		primaryKey: id,
+	}
+	response := map[string]map[string]int64{
+		"response": data,
+	}
+	err = json.NewEncoder(resp).Encode(response)
+	if err != nil {
+		log.Printf("error: %v", err)
+		return
+	}
 }
