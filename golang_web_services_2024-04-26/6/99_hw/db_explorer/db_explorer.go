@@ -266,9 +266,11 @@ func (info Handler) createRecord(resp http.ResponseWriter, req *http.Request, ta
 	}
 	newRecord := make(map[string]interface{})
 	for _, field := range info.Info[tableName] {
+		if field.Extra == "auto_increment" {
+			continue
+		}
 		userField, ok := userInput[field.Field] // вот тут было сложно взять поле из userInput
-		if ok && field.Extra != "auto_increment" {
-			// todo завтра пройти дебагом по этому куску с разными входными параметрами
+		if ok {
 			if field.Null == "NO" && userField == nil {
 				resp.WriteHeader(http.StatusInternalServerError)
 				return
@@ -285,7 +287,23 @@ func (info Handler) createRecord(resp http.ResponseWriter, req *http.Request, ta
 					return
 				}
 			}
+			if !isInt && (strings.HasPrefix(field.Type, "float") || strings.HasPrefix(field.Type, "double")) && userField != nil {
+				resp.WriteHeader(http.StatusInternalServerError)
+				return
+			}
 			newRecord[field.Field] = userField
+		} else {
+			if field.Null == "NO" && field.Default == nil {
+				if strings.HasPrefix(field.Type, "varchar") || field.Type == "text" {
+					newRecord[field.Field] = ""
+				}
+				if strings.HasPrefix(field.Type, "int") {
+					newRecord[field.Field] = 0
+				}
+				if strings.HasPrefix(field.Type, "float") || strings.HasPrefix(field.Type, "double") {
+					newRecord[field.Field] = 0
+				}
+			}
 		}
 	}
 	var sortedRecordColumns []string
