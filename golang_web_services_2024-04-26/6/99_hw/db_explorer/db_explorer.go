@@ -135,6 +135,10 @@ func (info Handler) ServeHTTP(resp http.ResponseWriter, req *http.Request) {
 		info.createRecord(resp, req, tableName, primaryKey)
 		return
 	}
+	if req.Method == http.MethodPost {
+		info.updateRecord(resp, req, tableName, primaryKey, recordID)
+		return
+	}
 
 	limit := req.URL.Query().Get("limit")
 	offset := req.URL.Query().Get("offset")
@@ -338,5 +342,33 @@ func (info Handler) createRecord(resp http.ResponseWriter, req *http.Request, ta
 	if err != nil {
 		log.Printf("error: %v", err)
 		return
+	}
+}
+
+func (info Handler) updateRecord(resp http.ResponseWriter, req *http.Request, tableName string, primaryKey string, recordID string) {
+	var userInput map[string]interface{}
+	err := json.NewDecoder(req.Body).Decode(&userInput)
+	if err != nil {
+		resp.WriteHeader(http.StatusInternalServerError)
+		log.Printf("error: %v", err)
+		return
+	}
+	for _, field := range info.Info[tableName] {
+		_, ok := userInput[field.Field] // userField потом верну
+		if ok {
+			if field.Field == primaryKey {
+				resp.Header().Set("Content-Type", "application/json")
+				resp.WriteHeader(http.StatusBadRequest)
+				response := map[string]string{
+					"error": "field " + primaryKey + " have invalid type",
+				}
+				err := json.NewEncoder(resp).Encode(response)
+				if err != nil {
+					log.Printf("error: %v", err)
+					return
+				}
+				return
+			}
+		}
 	}
 }
