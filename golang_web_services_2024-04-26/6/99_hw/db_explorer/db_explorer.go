@@ -354,7 +354,7 @@ func (info Handler) updateRecord(resp http.ResponseWriter, req *http.Request, ta
 		return
 	}
 	for _, field := range info.Info[tableName] {
-		_, ok := userInput[field.Field] // userField потом верну
+		userField, ok := userInput[field.Field]
 		if ok {
 			if field.Field == primaryKey {
 				resp.Header().Set("Content-Type", "application/json")
@@ -367,6 +367,34 @@ func (info Handler) updateRecord(resp http.ResponseWriter, req *http.Request, ta
 					log.Printf("error: %v", err)
 					return
 				}
+				return
+			}
+			/*	todo
+				пока только для одного поля
+				выводится 2 json response вместо 1
+				нужно накапливать изменения которые необходимо внести и потом делать UPDATE
+			*/
+			updateSQL := "UPDATE " + tableName + " SET " + field.Field + "=? " + " WHERE " + primaryKey + "=?"
+			updateRecord, err := info.db.Exec(updateSQL, userField, recordID)
+			if err != nil {
+				resp.WriteHeader(http.StatusInternalServerError)
+				return
+			}
+			updatedRows, err := updateRecord.RowsAffected()
+			if err != nil {
+				resp.WriteHeader(http.StatusInternalServerError)
+				return
+			}
+			resp.Header().Set("Content-Type", "application/json")
+			data := map[string]int64{
+				"updated": updatedRows,
+			}
+			response := map[string]map[string]int64{
+				"response": data,
+			}
+			err = json.NewEncoder(resp).Encode(response)
+			if err != nil {
+				log.Printf("error: %v", err)
 				return
 			}
 		}
