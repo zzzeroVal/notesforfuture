@@ -353,14 +353,22 @@ func (info Handler) updateRecord(resp http.ResponseWriter, req *http.Request, ta
 		log.Printf("error: %v", err)
 		return
 	}
+	var valuesForUpdate []string
+	var argsForExec []any
 	for _, field := range info.Info[tableName] {
 		userField, ok := userInput[field.Field]
 		if ok {
-			if field.Field == primaryKey {
+			// todo повторно пройтись дебагом, написать проверку на null и int
+			_, isString := userField.(string)
+			invalidStringValue := false
+			if !isString && (strings.HasPrefix(field.Type, "varchar") || field.Type == "text") && userField != nil {
+				invalidStringValue = true
+			}
+			if field.Field == primaryKey || invalidStringValue == true {
 				resp.Header().Set("Content-Type", "application/json")
 				resp.WriteHeader(http.StatusBadRequest)
 				response := map[string]string{
-					"error": "field " + primaryKey + " have invalid type",
+					"error": "field " + field.Field + " have invalid type",
 				}
 				err := json.NewEncoder(resp).Encode(response)
 				if err != nil {
@@ -369,34 +377,48 @@ func (info Handler) updateRecord(resp http.ResponseWriter, req *http.Request, ta
 				}
 				return
 			}
-			/*	todo
-				пока только для одного поля
-				выводится 2 json response вместо 1
-				нужно накапливать изменения которые необходимо внести и потом делать UPDATE
-			*/
-			updateSQL := "UPDATE " + tableName + " SET " + field.Field + "=? " + " WHERE " + primaryKey + "=?"
-			updateRecord, err := info.db.Exec(updateSQL, userField, recordID)
-			if err != nil {
-				resp.WriteHeader(http.StatusInternalServerError)
-				return
-			}
-			updatedRows, err := updateRecord.RowsAffected()
-			if err != nil {
-				resp.WriteHeader(http.StatusInternalServerError)
-				return
-			}
-			resp.Header().Set("Content-Type", "application/json")
-			data := map[string]int64{
-				"updated": updatedRows,
-			}
-			response := map[string]map[string]int64{
-				"response": data,
-			}
-			err = json.NewEncoder(resp).Encode(response)
-			if err != nil {
-				log.Printf("error: %v", err)
-				return
-			}
+			valuesForUpdate = append(valuesForUpdate, field.Field+"=?")
+			argsForExec = append(argsForExec, userField)
 		}
+	}
+	if len(valuesForUpdate) == 0 {
+		resp.Header().Set("Content-Type", "application/json")
+		data := map[string]int64{
+			"updated": 0,
+		}
+		response := map[string]map[string]int64{
+			"response": data,
+		}
+		err := json.NewEncoder(resp).Encode(response)
+		if err != nil {
+			log.Printf("error: %v", err)
+			return
+		}
+		return
+	}
+	argsForExec = append(argsForExec, recordID)
+	setValuesSQL := strings.Join(valuesForUpdate, ", ")
+	updateSQL := "UPDATE " + tableName + " SET " + setValuesSQL + " WHERE " + primaryKey + "=?"
+	updateRecord, err := info.db.Exec(updateSQL, argsForExec...)
+	if err != nil {
+		resp.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+	updatedRows, err := updateRecord.RowsAffected()
+	if err != nil {
+		resp.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+	resp.Header().Set("Content-Type", "application/json")
+	data := map[string]int64{
+		"updated": updatedRows,
+	}
+	response := map[string]map[string]int64{
+		"response": data,
+	}
+	err = json.NewEncoder(resp).Encode(response)
+	if err != nil {
+		log.Printf("error: %v", err)
+		return
 	}
 }
