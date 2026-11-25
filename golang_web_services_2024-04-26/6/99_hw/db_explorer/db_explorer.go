@@ -358,13 +358,29 @@ func (info Handler) updateRecord(resp http.ResponseWriter, req *http.Request, ta
 	for _, field := range info.Info[tableName] {
 		userField, ok := userInput[field.Field]
 		if ok {
-			// todo повторно пройтись дебагом, написать проверку на null и int
 			_, isString := userField.(string)
 			invalidStringValue := false
 			if !isString && (strings.HasPrefix(field.Type, "varchar") || field.Type == "text") && userField != nil {
 				invalidStringValue = true
 			}
-			if field.Field == primaryKey || invalidStringValue == true {
+			//todo продебажить int и float
+			invalidNullValue := false
+			if field.Null == "NO" && userField == nil {
+				invalidNullValue = true
+			}
+			num, isInt := userField.(float64)
+			invalidIntValue := false
+			if strings.HasPrefix(field.Type, "int") && userField != nil {
+				if !isInt || num != math.Trunc(num) {
+					invalidIntValue = true
+				}
+			}
+
+			invalidFloatValue := false
+			if !isInt && (strings.HasPrefix(field.Type, "float") || strings.HasPrefix(field.Type, "double")) && userField != nil {
+				invalidFloatValue = true
+			}
+			if field.Field == primaryKey || invalidStringValue == true || invalidNullValue == true || invalidIntValue == true || invalidFloatValue == true {
 				resp.Header().Set("Content-Type", "application/json")
 				resp.WriteHeader(http.StatusBadRequest)
 				response := map[string]string{
