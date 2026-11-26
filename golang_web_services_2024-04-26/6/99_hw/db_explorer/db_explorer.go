@@ -130,16 +130,17 @@ func (info Handler) ServeHTTP(resp http.ResponseWriter, req *http.Request) {
 			primaryKey = val.Field
 		}
 	}
-
-	if req.Method == http.MethodPut {
+	switch req.Method {
+	case http.MethodPut:
 		info.createRecord(resp, req, tableName, primaryKey)
 		return
-	}
-	if req.Method == http.MethodPost {
+	case http.MethodPost:
 		info.updateRecord(resp, req, tableName, primaryKey, recordID)
 		return
+	case http.MethodDelete:
+		info.deleteRecord(resp, tableName, primaryKey, recordID)
+		return
 	}
-
 	limit := req.URL.Query().Get("limit")
 	offset := req.URL.Query().Get("offset")
 	var err error
@@ -363,7 +364,6 @@ func (info Handler) updateRecord(resp http.ResponseWriter, req *http.Request, ta
 			if !isString && (strings.HasPrefix(field.Type, "varchar") || field.Type == "text") && userField != nil {
 				invalidStringValue = true
 			}
-			//todo продебажить int и float
 			invalidNullValue := false
 			if field.Null == "NO" && userField == nil {
 				invalidNullValue = true
@@ -375,12 +375,12 @@ func (info Handler) updateRecord(resp http.ResponseWriter, req *http.Request, ta
 					invalidIntValue = true
 				}
 			}
-
 			invalidFloatValue := false
 			if !isInt && (strings.HasPrefix(field.Type, "float") || strings.HasPrefix(field.Type, "double")) && userField != nil {
 				invalidFloatValue = true
 			}
-			if field.Field == primaryKey || invalidStringValue == true || invalidNullValue == true || invalidIntValue == true || invalidFloatValue == true {
+			invalid := field.Field == primaryKey || invalidStringValue || invalidNullValue || invalidIntValue || invalidFloatValue
+			if invalid {
 				resp.Header().Set("Content-Type", "application/json")
 				resp.WriteHeader(http.StatusBadRequest)
 				response := map[string]string{
@@ -437,4 +437,30 @@ func (info Handler) updateRecord(resp http.ResponseWriter, req *http.Request, ta
 		log.Printf("error: %v", err)
 		return
 	}
+}
+
+func (info Handler) deleteRecord(resp http.ResponseWriter, tableName string, primaryKey string, recordID string) {
+	deleteSQL := "DELETE FROM " + tableName + " WHERE " + primaryKey + "=?"
+	deleteRecord, err := info.db.Exec(deleteSQL, recordID)
+	if err != nil {
+		resp.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+	deletedRows, err := deleteRecord.RowsAffected()
+	if err != nil {
+		resp.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+	resp.Header().Set("Content-Type", "application/json")
+	data := map[string]int64{
+		"deleted": deletedRows,
+	}
+	response := map[string]map[string]int64{
+		"response": data,
+	}
+	err = json.NewEncoder(resp).Encode(response)
+	if err != nil {
+		log.Printf("error: %v", err)
+	}
+
 }
